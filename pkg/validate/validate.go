@@ -1,7 +1,10 @@
 package validate
 
 import (
+	"crypto/rsa"
 	"crypto/x509"
+	"fmt"
+	"time"
 
 	multierror "github.com/hashicorp/go-multierror"
 )
@@ -11,8 +14,11 @@ type CertValidator interface {
 	Validate(*x509.Certificate) error
 }
 
-type MultiValidator []*x509.Certificate
+// A MultiValidator can perform multiple validations on the same certificate
+type MultiValidator []CertValidator
 
+// Validate checks all the subvalidations and returns a hashicorp multierror
+// containing any/all violations discovered.
 func (m MultiValidator) Validate(c *x509.Certificate) error {
 	var err error
 	for _, m := range m {
@@ -23,8 +29,33 @@ func (m MultiValidator) Validate(c *x509.Certificate) error {
 	return err
 }
 
+// MinKeyStrength checks that the key strength is at least the number given.
 type MinKeyStrength int
 
+// Validate checks the strength of the key in bits
 func (m MinKeyStrength) Validate(c *x509.Certificate) error {
-	panic("NYI")
+	switch key := c.PublicKey.(type) {
+	case *rsa.PublicKey:
+		if key.Size()*8 < int(m) {
+			return fmt.Errorf("key strength %d is less than required (%d)", key.Size()*8, m)
+		}
+	}
+	return nil
+}
+
+// ValidAt checks that the represented time.Time falls between the
+// certificate's NotAfter and NotBefore properties.
+type ValidAt time.Time
+
+// Validate checks expiration and maturity
+func (v ValidAt) Validate(c *x509.Certificate) error {
+	if c.NotBefore.Before(time.Time(v)) {
+		return fmt.Errorf("cert is not yet valid")
+	}
+
+	if c.NotAfter.After(time.Time(v)) {
+		return fmt.Errorf("cert is expired")
+	}
+
+	return nil
 }
