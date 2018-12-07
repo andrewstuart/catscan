@@ -1,7 +1,6 @@
 package scan
 
 import (
-	"crypto/tls"
 	"crypto/x509"
 	"net"
 )
@@ -23,27 +22,4 @@ func (csf ConnScanFunc) ScanConn(conn net.Conn) (Certer, error) {
 		return nil, err
 	}
 	return SliceCerter(slice), nil
-}
-
-// A HandshakeScanner can scan a connection with multiple DNSNames
-type HandshakeScanner struct {
-	Configs []*tls.Config
-}
-
-// ScanConn scans a net.Conn for TLS certificates by attempting a direct TLS
-// handshake.
-func (hs HandshakeScanner) ScanConn(conn net.Conn) (Certer, error) {
-	cs := make([]*x509.Certificate, 0, len(hs.Configs)*3/2)
-
-	for _, config := range hs.Configs {
-		conn := tls.Client(conn, config)
-		if err := conn.Handshake(); err != nil {
-			return SliceCerter(cs), err
-		}
-
-		// TODO we might want to keep the chain here.
-		cs = append(cs, conn.ConnectionState().PeerCertificates[0])
-	}
-
-	return SliceCerter(cs), nil
 }
