@@ -18,15 +18,24 @@ type AXFRScanner struct {
 
 	Ports []int16
 	Scans []ConnScanner
+
+	recGet func() (chan dns.RR, error)
 }
 
-func (a AXFRScanner) Scan() (Certer, error) {
+func (a AXFRScanner) getRecs() (chan *dns.Envelope, error) {
+	if a.recGet != nil {
+		return a.getRecs()
+	}
 	t := &dns.Transfer{}
 	m := &dns.Msg{}
 
 	m.SetAxfr(fmt.Sprintf("%s.", strings.TrimRight(a.Domain, ".")))
 
-	recs, err := t.In(m, a.DNSServer)
+	return t.In(m, a.DNSServer)
+}
+
+func (a AXFRScanner) Scan() (Certer, error) {
+	recs, err := a.getRecs()
 	if err != nil {
 		return nil, errors.Wrap(err, "dns query error")
 	}
