@@ -1,22 +1,23 @@
-package kubernetes
+package scan
 
 import (
 	"crypto/x509"
 	"log"
 
-	"astuart.co/catscan/pkg/scan"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
 
-type SecretScanner struct {
+// A KubeSecretScanner can scan kubernetes secrets from inside the cluster.
+type KubeSecretScanner struct {
 }
 
-func (s SecretScanner) Scan() scan.Certer {
+func (s SecretScanner) Scan() Certer {
 	return s
 }
 
+// Read implements Scanner
 func (s SecretScanner) Read(certs chan<- *x509.Certificate, errs chan<- error) {
 	cfg, err := rest.InClusterConfig()
 	if err != nil {
