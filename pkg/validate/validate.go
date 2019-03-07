@@ -23,7 +23,7 @@ func (m MultiValidator) Validate(c *x509.Certificate) error {
 	var err error
 	for _, m := range m {
 		if e := m.Validate(c); e != nil {
-			err = multierror.Append(err)
+			err = multierror.Append(e)
 		}
 	}
 	return err
@@ -49,12 +49,12 @@ type ValidAt time.Time
 
 // Validate checks expiration and maturity
 func (v ValidAt) Validate(c *x509.Certificate) error {
-	if c.NotBefore.Before(time.Time(v)) {
-		return fmt.Errorf("cert is not yet valid")
+	if time.Time(v).Before(c.NotBefore) {
+		return fmt.Errorf("cert date %s is not yet valid", c.NotBefore)
 	}
 
-	if c.NotAfter.After(time.Time(v)) {
-		return fmt.Errorf("cert is expired")
+	if time.Time(v).After(c.NotAfter) {
+		return fmt.Errorf("cert date %s is expired", c.NotAfter)
 	}
 
 	return nil
