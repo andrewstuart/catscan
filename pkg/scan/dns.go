@@ -16,9 +16,11 @@ type AXFRScanner struct {
 	DNSServer string
 	Domain    string
 
-	Ports []int16
-	Scans []ConnScanner
+	Ports       []int16
+	Scans       []ConnScanner
+	Concurrency int
 
+	// testing
 	recGet func() (chan dns.RR, error)
 }
 
@@ -52,6 +54,7 @@ func (a AXFRScanner) Scan() (Certer, error) {
 				names[rr.Hdr.Name] = rr
 				da, ok := ips[rr.A.String()]
 				if !ok {
+					// make an IP scanner and store it
 					da = &IPScanner{
 						IP:    rr.A,
 						Ports: a.Ports,
@@ -84,7 +87,10 @@ func (a AXFRScanner) Scan() (Certer, error) {
 
 	mc := MultiScanner{
 		Scanners:    make([]Scanner, 0, len(ips)),
-		Concurrency: 400, // TODO configurable
+		Concurrency: a.Concurrency,
+	}
+	if mc.Concurrency == 0 {
+		mc.Concurrency = 400
 	}
 
 	for _, scanner := range ips {

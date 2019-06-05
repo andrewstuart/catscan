@@ -5,6 +5,9 @@ import (
 	"net"
 )
 
+// Why scanner versus certer? IDK. I was probably crazy.
+// Ideally just one interface.
+
 // A Scanner implementation can return a stream of certificates, but may error
 type Scanner interface {
 	Scan() (Certer, error)
