@@ -1,6 +1,7 @@
 package scan
 
 import (
+	"context"
 	"fmt"
 	"sync"
 )
@@ -11,8 +12,10 @@ type MultiScanner struct {
 	Concurrency int
 }
 
+var _ Scanner = (*MultiScanner)(nil)
+
 // Scan implements Scan for multiple Scanners concurrently
-func (mc MultiScanner) Scan() (Certer, error) {
+func (mc MultiScanner) Scan(ctx context.Context) (Certer, error) {
 	if mc.Concurrency < 1 {
 		return nil, fmt.Errorf("concurrency (%d) cannot be less than 1", mc.Concurrency)
 	}
@@ -36,13 +39,13 @@ func (mc MultiScanner) Scan() (Certer, error) {
 			}()
 			conc <- struct{}{}
 
-			certer, err := s.Scan()
+			certer, err := s.Scan(ctx)
 			if err != nil {
 				cc.errs <- err
 				return
 			}
 
-			certer.Read(cc.certs, cc.errs)
+			certer.Read(ctx, cc.certs, cc.errs)
 		}(s)
 	}
 

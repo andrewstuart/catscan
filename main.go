@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/x509"
 	"log"
 	"os"
@@ -15,24 +16,39 @@ import (
 	"k8s.io/client-go/rest"
 )
 
+var ctx, cancel = context.WithCancel(context.Background())
+
+func init() {
+	go func() {
+		ch := make(chan os.Signal, 2)
+		signal.Notify(ch, syscall.SIGTERM, syscall.SIGINT)
+		i := 0
+		for range ch {
+			i++
+			if i > 1 {
+				os.Exit(1)
+			}
+			cancel()
+		}
+	}()
+
+}
+
 func main() {
 	d := scan.KubeSecretScanner{
 		KubeConfig: &rest.Config{
-			BearerToken: os.Getenv("TOKEN"),
-			Host:        os.Getenv("SERVER"),
+			// BearerToken: os.Getenv("TOKEN"),
+			Host: "http://localhost:8001",
 		},
 		Extra: []func(corev1.Secret) ([]*x509.Certificate, error){},
 	}
 
-	c, err := d.Scan()
+	c, err := d.Scan(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	certs, errs := make(chan *x509.Certificate), make(chan error)
-
-	sigs := make(chan os.Signal)
-	go signal.Notify(sigs, syscall.SIGTERM, os.Interrupt)
 
 	go func() {
 		defer close(certs)
@@ -40,11 +56,10 @@ func main() {
 		tkr := time.NewTicker(time.Minute)
 		for {
 			select {
-			case sig := <-sigs:
-				log.Println("got ", sig)
+			case <-ctx.Done():
 				return
 			case <-tkr.C:
-				c.Read(certs, errs)
+				c.Read(ctx, certs, errs)
 			}
 		}
 	}()
@@ -61,12 +76,11 @@ func main() {
 				logrus.Info("certs closed")
 				return
 			}
-			log.Println(c.Subject)
 			err := v.Validate(c)
 			if err != nil {
-				log.Println(err)
+				logrus.WithField("certNames", c.DNSNames).WithError(err).Error("invalid cert encountered")
 			}
-		case <-sigs:
+		case <-ctx.Done():
 			logrus.Info("shutdown signaled")
 			return
 		case err, ok := <-errs:

@@ -1,14 +1,19 @@
 package scan
 
-import "crypto/x509"
+import (
+	"context"
+	"crypto/x509"
+)
 
 type Certer interface {
-	Read(chan<- *x509.Certificate, chan<- error)
+	Read(context.Context, chan<- *x509.Certificate, chan<- error)
 }
 
 type SliceCerter []*x509.Certificate
 
-func (sc SliceCerter) Read(cout chan<- *x509.Certificate, eout chan<- error) {
+var _ Certer = (SliceCerter)(nil)
+
+func (sc SliceCerter) Read(ctx context.Context, cout chan<- *x509.Certificate, eout chan<- error) {
 	for _, s := range sc {
 		cout <- s
 	}
@@ -19,7 +24,9 @@ type ChanCerter struct {
 	errs  chan error
 }
 
-func (cc ChanCerter) Read(cout chan<- *x509.Certificate, eout chan<- error) {
+var _ Certer = (*ChanCerter)(nil)
+
+func (cc ChanCerter) Read(ctx context.Context, cout chan<- *x509.Certificate, eout chan<- error) {
 	var (
 		// temp variables
 		cert *x509.Certificate

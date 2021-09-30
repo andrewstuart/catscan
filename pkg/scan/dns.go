@@ -1,6 +1,7 @@
 package scan
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"strings"
@@ -24,6 +25,8 @@ type AXFRScanner struct {
 	recGet func() (chan dns.RR, error)
 }
 
+var _ Scanner = (*AXFRScanner)(nil)
+
 func (a AXFRScanner) getRecs() (chan *dns.Envelope, error) {
 	if a.recGet != nil {
 		return a.getRecs()
@@ -36,7 +39,7 @@ func (a AXFRScanner) getRecs() (chan *dns.Envelope, error) {
 	return t.In(m, a.DNSServer)
 }
 
-func (a AXFRScanner) Scan() (Certer, error) {
+func (a AXFRScanner) Scan(ctx context.Context) (Certer, error) {
 	recs, err := a.getRecs()
 	if err != nil {
 		return nil, errors.Wrap(err, "dns query error")
@@ -97,5 +100,5 @@ func (a AXFRScanner) Scan() (Certer, error) {
 		mc.Scanners = append(mc.Scanners, scanner)
 	}
 
-	return mc.Scan()
+	return mc.Scan(ctx)
 }

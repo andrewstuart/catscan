@@ -1,6 +1,7 @@
 package scan
 
 import (
+	"context"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
@@ -19,8 +20,10 @@ type KubeSecretScanner struct {
 	Extra []func(v1.Secret) ([]*x509.Certificate, error)
 }
 
+var _ Scanner = (*KubeSecretScanner)(nil)
+
 // Scan implements Scanner :sob:
-func (s *KubeSecretScanner) Scan() (Certer, error) {
+func (s *KubeSecretScanner) Scan(context.Context) (Certer, error) {
 	return s, nil
 }
 
@@ -41,7 +44,7 @@ func (k *SecretDataError) Error() string {
 }
 
 // Read implements Certer
-func (s *KubeSecretScanner) Read(certs chan<- *x509.Certificate, errs chan<- error) {
+func (s *KubeSecretScanner) Read(ctx context.Context, certs chan<- *x509.Certificate, errs chan<- error) {
 	if s.KubeConfig == nil {
 		var err error
 		s.KubeConfig, err = rest.InClusterConfig()
@@ -57,14 +60,14 @@ func (s *KubeSecretScanner) Read(certs chan<- *x509.Certificate, errs chan<- err
 		return
 	}
 
-	ns, err := cs.CoreV1().Namespaces().List(metav1.ListOptions{})
+	ns, err := cs.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		errs <- err
 		return
 	}
 
 	for _, n := range ns.Items {
-		ss, err := cs.CoreV1().Secrets(n.Name).List(metav1.ListOptions{})
+		ss, err := cs.CoreV1().Secrets(n.Name).List(ctx, metav1.ListOptions{})
 		if err != nil {
 			errs <- errors.Wrap(err, "error getting secrets")
 			continue

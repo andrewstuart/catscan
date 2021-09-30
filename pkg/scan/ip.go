@@ -1,6 +1,7 @@
 package scan
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"time"
@@ -14,9 +15,11 @@ type IPScanner struct {
 	Timeout time.Duration
 }
 
+var _ Scanner = (*IPScanner)(nil)
+
 var DefaultTimeout = time.Second
 
-func (is IPScanner) Scan() (Certer, error) {
+func (is IPScanner) Scan(ctx context.Context) (Certer, error) {
 	cc := NewChanCerter()
 	if is.Timeout == time.Duration(0) {
 		is.Timeout = DefaultTimeout
@@ -36,12 +39,12 @@ func (is IPScanner) Scan() (Certer, error) {
 			for _, scan := range is.Scans {
 				conn.SetDeadline(time.Now().Add(is.Timeout))
 
-				crt, err := scan.ScanConn(conn)
+				crt, err := scan.ScanConn(ctx, conn)
 				if err != nil {
 					cc.errs <- err
 					continue
 				}
-				crt.Read(cc.certs, cc.errs)
+				crt.Read(ctx, cc.certs, cc.errs)
 			}
 
 			err = conn.Close()
