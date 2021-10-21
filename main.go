@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"crypto/x509"
-	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -35,17 +34,27 @@ func init() {
 }
 
 func main() {
-	d := scan.KubeSecretScanner{
-		KubeConfig: &rest.Config{
-			// BearerToken: os.Getenv("TOKEN"),
-			Host: "http://localhost:8001",
-		},
-		Extra: []func(corev1.Secret) ([]*x509.Certificate, error){},
+	d := scan.MultiScanner{
+		Scanners: []scan.Scanner{
+			&scan.KubeSecretScanner{
+				KubeConfig: &rest.Config{
+					Host: "http://localhost:8001",
+					// BearerToken: os.Getenv("TOKEN"),
+					// Host:        os.Getenv("SERVER"),
+				},
+				Extra: []func(corev1.Secret) ([]*x509.Certificate, error){},
+				// }, &scan.AXFRScanner{
+				// 	DNSServer:   "192.168.16.5:53",
+				// 	Domain:      "astuart.co",
+				// 	Ports:       []int16{443},
+				// 	Concurrency: 30,
+			}},
+		Concurrency: 2,
 	}
 
 	c, err := d.Scan(ctx)
 	if err != nil {
-		log.Fatal(err)
+		logrus.Fatal(err)
 	}
 
 	certs, errs := make(chan *x509.Certificate), make(chan error)
@@ -54,6 +63,7 @@ func main() {
 		defer close(certs)
 		defer close(errs)
 		tkr := time.NewTicker(time.Minute)
+		c.Read(ctx, certs, errs)
 		for {
 			select {
 			case <-ctx.Done():

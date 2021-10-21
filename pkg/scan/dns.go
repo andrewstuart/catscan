@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/miekg/dns"
 	"github.com/pkg/errors"
@@ -59,8 +60,9 @@ func (a AXFRScanner) Scan(ctx context.Context) (Certer, error) {
 				if !ok {
 					// make an IP scanner and store it
 					da = &IPScanner{
-						IP:    rr.A,
-						Ports: a.Ports,
+						IP:      rr.A,
+						Ports:   a.Ports,
+						Timeout: 10 * time.Second,
 						Scans: []ConnScanner{&HandshakeScanner{
 							Configs: []*tls.Config{},
 						}},
