@@ -6,8 +6,6 @@ import (
 	"crypto/x509"
 	"log"
 	"net"
-
-	"github.com/opentracing/opentracing-go"
 )
 
 // A HandshakeScanner can scan a connection with multiple DNSNames
@@ -20,9 +18,6 @@ var _ ConnScanner = (*HandshakeScanner)(nil)
 // ScanConn scans a net.Conn for TLS certificates by attempting a direct TLS
 // handshake.
 func (hs HandshakeScanner) ScanConn(ctx context.Context, conn net.Conn) (Certer, error) {
-	sp, ctx := opentracing.StartSpanFromContext(ctx, "HandshakeScanner.ScanConn")
-	defer sp.Finish()
-
 	defer func() {
 		if err := recover(); err != nil {
 			log.Fatal(err)

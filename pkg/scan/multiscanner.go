@@ -14,7 +14,7 @@ type MultiScanner struct {
 
 var _ Scanner = (*MultiScanner)(nil)
 
-// Scan implements Scan for multiple Scanners concurrently
+// Scan implements Scan using multiple Scanners concurrently
 func (mc MultiScanner) Scan(ctx context.Context) (Certer, error) {
 	if mc.Concurrency < 1 {
 		return nil, fmt.Errorf("concurrency (%d) cannot be less than 1", mc.Concurrency)
