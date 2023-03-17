@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/x509"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -10,9 +11,8 @@ import (
 
 	"astuart.co/catscan/pkg/scan"
 	"astuart.co/catscan/pkg/validate"
+	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/sirupsen/logrus"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/rest"
 )
 
 var ctx, cancel = context.WithCancel(context.Background())
@@ -34,20 +34,31 @@ func init() {
 }
 
 func main() {
+	cred, err := azidentity.NewDefaultAzureCredential(nil)
+	if err != nil {
+		log.Fatalf("Authentication failure: %+v", err)
+	}
 	d := scan.MultiScanner{
 		Scanners: []scan.Scanner{
-			&scan.KubeSecretScanner{
-				KubeConfig: &rest.Config{
-					Host: "http://localhost:8001",
-					// BearerToken: os.Getenv("TOKEN"),
-					// Host:        os.Getenv("SERVER"),
-				},
-				Extra: []func(corev1.Secret) ([]*x509.Certificate, error){},
-				// }, &scan.AXFRScanner{
-				// 	DNSServer:   "192.168.16.5:53",
-				// 	Domain:      "astuart.co",
-				// 	Ports:       []int16{443},
-				// 	Concurrency: 30,
+			&scan.AzureDNSScanner{
+				Creds:        cred,
+				Subscription: "8cc6e0ed-1c1e-4d57-9fa5-16dfc3852bb1",
+			}, &scan.AzureDNSScanner{
+				Creds:        cred,
+				Subscription: "0c0c4cf4-12e5-4d96-862a-655e121e073b",
+				// },
+				// &scan.KubeSecretScanner{
+				// 	KubeConfig: &rest.Config{
+				// 		Host: "http://localhost:8001",
+				// 		// BearerToken: os.Getenv("TOKEN"),
+				// 		// Host:        os.Getenv("SERVER"),
+				// 	},
+				// 	Extra: []func(corev1.Secret) ([]*x509.Certificate, error){},
+				// 	// }, &scan.AXFRScanner{
+				// 	// 	DNSServer:   "192.168.16.5:53",
+				// 	// 	Domain:      "astuart.co",
+				// 	// 	Ports:       []int16{443},
+				// 	// 	Concurrency: 30,
 			}},
 		Concurrency: 2,
 	}
@@ -76,7 +87,7 @@ func main() {
 
 	v := validate.MultiValidator{
 		validate.MinKeyStrength(2048),
-		validate.ValidAt(time.Now()),
+		validate.ValidAt(time.Now().AddDate(0, 0, 30)),
 	}
 
 	for {
